@@ -1,0 +1,20 @@
+{
+    "logs": [
+        {
+            "outputFile": "com.distractblock.app-mergeDebugResources-40:/values-v29/values-v29.xml",
+            "map": [
+                {
+                    "source": "C:\\Users\\Manas\\.gradle\\caches\\9.1.0\\transforms\\b496d4c2642a1a71035afe1448aca5c6\\workspace\\transformed\\core-splashscreen-1.0.1\\res\\values-v29\\values-v29.xml",
+                    "from": {
+                        "startLines": "2,7",
+                        "startColumns": "4,4",
+                        "startOffsets": "55,374",
+                        "endLines": "6,8",
+                        "endColumns": "12,12",
+                        "endOffsets": "369,464"
+                    }
+                }
+            ]
+        }
+    ]
+}

@@ -1,0 +1,12 @@
+buildscript {
+    ext {
+        room_version   = '2.7.1'
+        lifecycle_version = '2.7.0'
+        coroutines_version = '1.7.3'
+    }
+}
+
+plugins {
+    id 'com.android.application' version '9.0.1' apply false
+    id 'com.google.devtools.ksp' version '2.2.0-2.0.2' apply false
+}

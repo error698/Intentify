@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Intentify</string>
+    <string name="accessibility_service_label">Intentify Blocker</string>
+    <string name="accessibility_service_description">Intentify monitors which app is in the foreground. When you open a blocked app it shows a pause screen so you can reconsider. No data is collected or transmitted.</string>
+</resources>

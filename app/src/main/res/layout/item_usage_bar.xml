@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:layout_marginBottom="4dp">
+
+    <!-- Day label (e.g. "Mon") -->
+    <TextView
+        android:id="@+id/tv_day_label"
+        android:layout_width="36dp"
+        android:layout_height="wrap_content"
+        android:textSize="10sp"
+        android:fontFamily="monospace"
+        android:textColor="?attr/colorOutline"/>
+
+    <!-- Bar background -->
+    <FrameLayout
+        android:layout_width="0dp"
+        android:layout_height="14dp"
+        android:layout_weight="1"
+        android:background="@drawable/bg_bar_track">
+
+        <!-- Bar fill -->
+        <View
+            android:id="@+id/bar_fill"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:background="@drawable/bg_bar_fill"/>
+
+    </FrameLayout>
+
+    <!-- Duration label (e.g. "1h 23m") -->
+    <TextView
+        android:id="@+id/tv_duration"
+        android:layout_width="52dp"
+        android:layout_height="wrap_content"
+        android:gravity="end"
+        android:textSize="10sp"
+        android:fontFamily="monospace"
+        android:textColor="?attr/colorOutline"/>
+
+</LinearLayout>

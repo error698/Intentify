@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.DistractBlock" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">#FF6B6B</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorSecondary">#38bdf8</item>
+        <item name="colorOnSecondary">#000000</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+
+    <style name="Theme.DistractBlock.Splash" parent="Theme.DistractBlock">
+        <item name="android:windowBackground">#0D0D0D</item>
+        <item name="android:windowIsTranslucent">false</item>
+        <item name="android:windowAnimationStyle">@null</item>
+    </style>
+</resources>
