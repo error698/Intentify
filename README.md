@@ -1,4 +1,4 @@
-# DistractBlock — Android (Optimized)
+# Intentify — Android (Optimized)
 
 ## Architecture
 
