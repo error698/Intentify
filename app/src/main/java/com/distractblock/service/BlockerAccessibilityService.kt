@@ -59,18 +59,46 @@ class BlockerAccessibilityService : AccessibilityService() {
         }
     }
 
-    private lateinit var repository: AppRepository
+    private val repository: AppRepository by lazy {
+        AppRepository.getInstance(applicationContext)
+    }
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+
+    // Realtime in-memory cache synced with Room DB
+    private val blockedPackagesCache = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
 
     // Debounce: track last package + timestamp to avoid rapid re-fires
     private var lastBlockedPkg: String? = null
     private var lastBlockedTime: Long = 0L
-    private val DEBOUNCE_MS = 2000L
+    private val DEBOUNCE_MS = 1500L
 
     override fun onServiceConnected() {
         super.onServiceConnected()
-        repository = AppRepository(applicationContext)
         Log.d(TAG, "Service connected")
+
+        // Keep local cache continuously in sync with Room database
+        serviceScope.launch {
+            repository.observeBlockedApps().collect { apps ->
+                blockedPackagesCache.clear()
+                blockedPackagesCache.addAll(apps.map { it.packageName })
+                Log.d(TAG, "Blocked apps cache updated: $blockedPackagesCache")
+            }
+        }
+    }
+
+    private fun isSystemOrLauncher(pkg: String): Boolean {
+        if (pkg == packageName || pkg == "android" || pkg == "com.android.systemui") return true
+        if (SYSTEM_WHITELIST.any { it != "android" && pkg.startsWith(it) }) return true
+
+        try {
+            val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
+            val resolveInfo = packageManager.resolveActivity(intent, android.content.pm.PackageManager.MATCH_DEFAULT_ONLY)
+            if (resolveInfo?.activityInfo?.packageName == pkg) return true
+        } catch (e: Exception) {
+            // Ignore error resolving launcher
+        }
+
+        return false
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
@@ -78,7 +106,8 @@ class BlockerAccessibilityService : AccessibilityService() {
         if (event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
 
         val pkg = event.packageName?.toString() ?: return
-        if (SYSTEM_WHITELIST.any { pkg.startsWith(it) }) {
+
+        if (isSystemOrLauncher(pkg)) {
             if (lastBlockedPkg != null) lastBlockedPkg = null
             return
         }
@@ -87,25 +116,29 @@ class BlockerAccessibilityService : AccessibilityService() {
         if (isBlockingPaused()) return
         if (isPassedThrough(pkg)) return
 
-        // Debounce: don't re-fire for the same package within 2 seconds
+        // Debounce: don't re-fire for the same package within DEBOUNCE_MS
         val now = System.currentTimeMillis()
         if (pkg == lastBlockedPkg && now - lastBlockedTime < DEBOUNCE_MS) return
 
-        // Check DB on IO thread, launch splash on Main
         serviceScope.launch {
-            val blocked = withContext(Dispatchers.IO) { repository.isBlocked(pkg) }
+            // Check in-memory synced cache first, fallback to DB
+            val blocked = blockedPackagesCache.contains(pkg) || withContext(Dispatchers.IO) { repository.isBlocked(pkg) }
             if (blocked) {
                 lastBlockedPkg = pkg
                 lastBlockedTime = System.currentTimeMillis()
-                Log.d(TAG, "Intercepting: $pkg")
-                startActivity(
-                    Intent(this@BlockerAccessibilityService, SplashBlockActivity::class.java).apply {
-                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or
-                                Intent.FLAG_ACTIVITY_SINGLE_TOP or
-                                Intent.FLAG_ACTIVITY_CLEAR_TOP
-                        putExtra(SplashBlockActivity.EXTRA_PACKAGE_NAME, pkg)
-                    }
-                )
+                Log.d(TAG, "Intercepting blocked app: $pkg")
+                try {
+                    startActivity(
+                        Intent(this@BlockerAccessibilityService, SplashBlockActivity::class.java).apply {
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                                    Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                                    Intent.FLAG_ACTIVITY_CLEAR_TOP
+                            putExtra(SplashBlockActivity.EXTRA_PACKAGE_NAME, pkg)
+                        }
+                    )
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to launch SplashBlockActivity for $pkg", e)
+                }
             } else {
                 lastBlockedPkg = null
             }

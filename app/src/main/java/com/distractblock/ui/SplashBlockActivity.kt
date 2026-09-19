@@ -52,7 +52,7 @@ class SplashBlockActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_splash_block)
-        repository = AppRepository(applicationContext)
+        repository = AppRepository.getInstance(applicationContext)
         blockedPackage = intent.getStringExtra(EXTRA_PACKAGE_NAME) ?: ""
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
@@ -96,9 +96,14 @@ class SplashBlockActivity : AppCompatActivity() {
         // Reset button glow
         btnDontOpen.setStrokeColorResource(android.R.color.white)
 
+        val prefs = getSharedPreferences("distractblock_prefs", MODE_PRIVATE)
+        val countdownSecs = prefs.getInt("countdown_secs", 5)
+        val countdownMs = (countdownSecs * 1000L).coerceAtLeast(1000L)
+        val allowOpen = prefs.getBoolean("allow_open_after_countdown", true)
+
         // Hourglass flip animation
         var isFlipped = false
-        timer = object : CountDownTimer(COUNTDOWN_MS, TICK_MS) {
+        timer = object : CountDownTimer(countdownMs, TICK_MS) {
             override fun onTick(ms: Long) {
                 // Flip hourglass emoji each tick
                 isFlipped = !isFlipped
@@ -113,7 +118,7 @@ class SplashBlockActivity : AppCompatActivity() {
                     .start()
 
                 // Progressive button glow: stroke becomes more red as time runs out
-                val progress = 1f - (ms.toFloat() / COUNTDOWN_MS)
+                val progress = 1f - (ms.toFloat() / countdownMs)
                 val glowColor = ArgbEvaluator().evaluate(
                     progress,
                     Color.parseColor("#4DE8E8E8"),  // start: subtle white
@@ -129,13 +134,17 @@ class SplashBlockActivity : AppCompatActivity() {
                 )
             }
             override fun onFinish() {
-                // Grant pass-through so the service won't re-block
-                BlockerAccessibilityService.allowPassThrough(blockedPackage)
-                // Record the open then let the app through
-                lifecycleScope.launch {
-                    repository.recordOpen(blockedPackage)
+                if (allowOpen) {
+                    // Grant pass-through so the service won't re-block
+                    BlockerAccessibilityService.allowPassThrough(blockedPackage)
+                    // Record the open then let the app through
+                    lifecycleScope.launch {
+                        repository.recordOpen(blockedPackage)
+                    }
+                    finish()
+                } else {
+                    goHome()
                 }
-                finish()
             }
         }.start()
 

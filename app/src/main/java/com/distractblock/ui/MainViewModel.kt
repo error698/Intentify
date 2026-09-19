@@ -12,7 +12,7 @@ import kotlinx.coroutines.launch
 
 class MainViewModel(app: Application) : AndroidViewModel(app) {
 
-    val repository = AppRepository(app)
+    val repository = AppRepository.getInstance(app)
 
     // Exposed as StateFlow so the UI reacts to DB changes automatically
     val blockedApps: StateFlow<List<BlockedApp>> = repository.observeBlockedApps()

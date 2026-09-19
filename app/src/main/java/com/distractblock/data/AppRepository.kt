@@ -5,6 +5,8 @@ import android.content.Context
 import android.content.pm.PackageManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.*
@@ -13,7 +15,18 @@ import java.util.*
  * Single source of truth for all app data.
  * All heavy work runs on Dispatchers.IO.
  */
-class AppRepository(private val context: Context) {
+class AppRepository private constructor(private val context: Context) {
+
+    companion object {
+        @Volatile
+        private var INSTANCE: AppRepository? = null
+
+        fun getInstance(context: Context): AppRepository {
+            return INSTANCE ?: synchronized(this) {
+                INSTANCE ?: AppRepository(context.applicationContext).also { INSTANCE = it }
+            }
+        }
+    }
 
     private val dao = AppDatabase.getInstance(context).appDao()
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
@@ -29,30 +42,39 @@ class AppRepository(private val context: Context) {
         } catch (e: PackageManager.NameNotFoundException) { packageName }
 
         dao.insertApp(BlockedApp(packageName = packageName, appName = name))
+        invalidateCache()
     }
 
     suspend fun removeApp(packageName: String) = withContext(Dispatchers.IO) {
         dao.deleteApp(BlockedApp(packageName = packageName, appName = ""))
+        invalidateCache()
     }
 
     /**
      * Called by the AccessibilityService. Uses an in-memory cache so
      * the DB is not hit on every single accessibility event.
      */
-    private val blockedCache = mutableSetOf<String>()
-    private var cacheValid = false
+    private val cacheMutex = Mutex()
+    private val blockedCache = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+    @Volatile private var cacheValid = false
 
     suspend fun isBlocked(packageName: String): Boolean = withContext(Dispatchers.IO) {
         if (!cacheValid) {
-            blockedCache.clear()
-            blockedCache.addAll(dao.getAllBlocked().map { it.packageName })
-            cacheValid = true
+            cacheMutex.withLock {
+                if (!cacheValid) {
+                    blockedCache.clear()
+                    blockedCache.addAll(dao.getAllBlocked().map { it.packageName })
+                    cacheValid = true
+                }
+            }
         }
         blockedCache.contains(packageName)
     }
 
     /** Call after add/remove to bust the cache. */
-    fun invalidateCache() { cacheValid = false }
+    fun invalidateCache() {
+        cacheValid = false
+    }
 
     // ── Open counting ─────────────────────────────────────────────────────────
 
